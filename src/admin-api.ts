@@ -1,6 +1,6 @@
 import { getMigrations } from "better-auth/db/migration";
 import { makeSignature } from "better-auth/crypto";
-import { ADMIN_BASE_PATH, ORIGIN } from "./constants";
+import { ADMIN_BASE_PATH, requestOrigin } from "./constants";
 import { randomToken, sha256Hex, timingSafeEqual } from "./crypto";
 import type { Auth } from "./auth";
 
@@ -89,7 +89,7 @@ async function createInvite(request: Request, auth: Auth, db: D1Database): Promi
     id: invitation.id,
     email,
     expiresAt: new Date(invitation.expiresAt).toISOString(),
-    url: `${ORIGIN}/invite/${token}`,
+    url: `${requestOrigin(request)}/invite/${token}`,
   }, 201);
 }
 
@@ -164,7 +164,7 @@ async function recoverUser(request: Request, auth: Auth, db: D1Database): Promis
   return json({
     email,
     expiresAt: new Date(expiresAt).toISOString(),
-    url: `${ORIGIN}/invite/${token}`,
+    url: `${requestOrigin(request)}/invite/${token}`,
     warning: "All existing passkeys and sessions were revoked.",
   });
 }
@@ -222,7 +222,7 @@ async function provisionClient(
     client,
     cloudflareAccess: {
       redirectUri,
-      discoveryUrl: `${ORIGIN}/.well-known/openid-configuration`,
+      discoveryUrl: `${requestOrigin(request)}/.well-known/openid-configuration`,
       pkceEnabled: true,
       scopes: ["openid", "email", "profile"],
       emailClaimName: "email",

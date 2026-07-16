@@ -3,16 +3,19 @@ import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { jwt } from "better-auth/plugins";
-import { APP_NAME, ORIGIN, RP_ID } from "./constants";
+import { APP_NAME, requestOrigin } from "./constants";
 import { consumeInvitation, resolveInvitation } from "./invitations";
 
-export function createAuth(env: Env) {
+export function createAuth(env: Env, request: Request) {
+  const origin = requestOrigin(request);
+  const rpID = new URL(origin).hostname;
+
   return betterAuth({
     appName: APP_NAME,
-    baseURL: ORIGIN,
+    baseURL: origin,
     secret: env.BETTER_AUTH_SECRET,
     database: env.DB,
-    trustedOrigins: [ORIGIN],
+    trustedOrigins: [origin],
     emailAndPassword: { enabled: false },
     advanced: {
       database: { generateId: "uuid" },
@@ -21,9 +24,9 @@ export function createAuth(env: Env) {
     plugins: [
       jwt(),
       passkey({
-        rpID: RP_ID,
+        rpID,
         rpName: APP_NAME,
-        origin: ORIGIN,
+        origin,
         authenticatorSelection: {
           residentKey: "required",
           requireResidentKey: true,

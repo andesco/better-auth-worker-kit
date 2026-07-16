@@ -1,124 +1,66 @@
 # Better Auth Worker Kit
 
-An opinionated implementation of [Better Auth](https://www.better-auth.com/) for Cloudflare Workers.
+**Better Auth Worker Kit** adds passkey authentication to [Cloudflare&nbsp;Access][access] by running [Better&nbsp;Auth][better-auth] as a small OpenID Connect identity provider on [Cloudflare&nbsp;Workers][workers]. Authentication state is stored in [Cloudflare&nbsp;D1][d1], and administration remains CLI-only.
 
-The initial focus is a small identity provider for Cloudflare Access: it runs on Workers, stores relational authentication state in D1, uses passkeys for sign-in, and keeps administration in a Bun CLI instead of a browser dashboard.
+Cloudflare Access is still the access-control layer. It continues to handle application policies, permitted email addresses, sessions, identity-provider selection, and any OTP or MFA requirements. This Worker exists to add a passkey-capable primary sign-in option that Access does not provide on its own.
 
 This is an independent community project. It is not an official Better Auth or Cloudflare project.
 
-## Initial focus
+## Deploy to Cloudflare
 
-The included deployment profile is intentionally narrow:
+### Cloudflare Dashboard
 
-- **Cloudflare Access:** Better Auth acts as an OAuth 2.1/OpenID Connect provider, with one confidential client provisioned for a generic Cloudflare Access identity-provider integration.
-- **Workers + D1:** the authentication server runs in a Cloudflare Worker, while users, sessions, passkeys, invitations, OAuth clients, consents, and signing data live in D1.
-- **Passkeys:** passkeys are the only enabled interactive sign-in method. Enrollment requires a single-use invitation, resident credentials, and verified user presence.
-- **CLI administration:** migrations, invitations, recovery, and OIDC client provisioning are performed with the Bun CLI. There is no administration dashboard.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/better-auth-worker-kit)
 
-These are implementation defaults, not limitations of Better Auth or the project architecture.
+Workers & Pages → [**Create application**](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/deploy-to-workers): Continue with GitHub: Clone a public repository via Git URL:
 
-## Designed to extend
+```text
+https://github.com/andesco/better-auth-worker-kit
+```
 
-Better Auth remains the authentication core. Additional Better Auth capabilities can be introduced by changing the server plugins and configuration, adding any required external services, and migrating D1.
+Cloudflare automatically provisions and binds D1 from the draft `DB` binding in `wrangler.jsonc`. The deploy script applies the included schema migration; do not create a database manually or add an account-specific database ID to the repository.
 
-Possible extensions include:
+During setup, provide two different high-entropy secrets:
 
-- magic links or email OTP;
-- social OAuth providers;
-- usernames and passwords;
-- multi-factor authentication;
-- organizations and roles;
-- additional OIDC clients or relying parties;
-- a separately protected administration application.
+- `BETTER_AUTH_SECRET`: signs Better Auth cookies and tokens.
+- `ADMIN_TOKEN`: authenticates the Bun administration CLI.
 
-Enabling another sign-in method changes the security and recovery model. For example, email-based authentication requires a transactional email provider and makes control of the email account part of the trust boundary. Worker-runtime compatibility should also be verified for every new plugin and dependency.
+Generate each value independently with `openssl rand -hex 32`.
 
-The current boundaries are easy to locate:
+### Wrangler CLI
 
-| Concern | Location |
-|---|---|
-| Better Auth methods and plugins | `src/auth.ts` |
-| Worker routing and security headers | `src/index.ts` |
-| D1-backed invitations | `src/invitations.ts` |
-| Administrative command channel | `src/admin-api.ts` |
-| Bun administration CLI | `src/admin.ts` |
-| Browser sign-in and enrollment UX | `src/web/client.ts`, `public/` |
-
-## Current security profile
-
-- Email/password and social providers are disabled.
-- Passkey enrollment requires a cryptographically random, expiring, single-use invitation.
-- Resident credentials and user verification are required. The WebAuthn verification result is checked explicitly for the UV flag.
-- Dynamic OAuth client registration and user-managed OAuth client CRUD are disabled.
-- The administration channel requires a separate high-entropy bearer token and has no browser UI.
-- Exactly one OAuth client can be provisioned. It is configured for Cloudflare Access, requires PKCE, skips consent, and supports only the authorization-code grant.
-- Lost-passkey recovery is destructive and CLI-only: every existing session and passkey is revoked before a new invitation is issued.
-
-D1 is the system of record. KV is not required for correctness. It can be added later as Better Auth secondary storage for cacheable, short-lived data, but should not replace D1 for relational authentication state.
-
-## Local development
-
-Requirements: Bun and a Cloudflare account authenticated with Wrangler.
-
-```sh
+```bash
+git clone https://github.com/andesco/better-auth-worker-kit.git
+cd better-auth-worker-kit
 bun install
-cp .dev.vars.example .dev.vars
-bun run dev
-```
-
-In another terminal, initialize the local D1 database:
-
-```sh
-AUTH_ADMIN_URL=http://localhost:8787 \
-AUTH_ADMIN_TOKEN=your-local-admin-token \
-bun run admin migrate
-```
-
-The `.dev.vars.example` file contains non-production placeholders. The working `.dev.vars` file is gitignored; replace both values locally.
-
-## Production setup
-
-The checked-in deployment example uses `auth.andrewe.dev`. Change the custom domain, public origin, RP ID, and application name before deploying another instance.
-
-1. Create D1 and copy the returned database ID into `wrangler.jsonc`:
-
-```sh
-bunx wrangler d1 create better-auth-worker-kit
-```
-
-2. Configure both secrets interactively. Use different random values of at least 32 bytes:
-
-```sh
+bunx wrangler whoami
+bun run deploy
 bunx wrangler secret put BETTER_AUTH_SECRET
 bunx wrangler secret put ADMIN_TOKEN
 ```
 
-3. Deploy, then run the schema migration through the Bun CLI:
+The first deploy automatically provisions D1, applies `migrations/0001_initial.sql`, and deploys the Worker. Adding each secret creates a new production Worker version.
 
-```sh
-bun run deploy
-AUTH_ADMIN_TOKEN='your-production-admin-token' bun run admin migrate
-```
+### Connect Cloudflare Access
 
-4. Provision the initial OIDC client. Replace `your-team` with the Cloudflare Zero Trust team name, not the account name:
+Find the Zero Trust team name under Settings → Custom Pages → Team domain, then provision the one OIDC client:
 
-```sh
-AUTH_ADMIN_TOKEN='your-production-admin-token' \
-bun run admin client provision your-team
+```bash
+AUTH_ADMIN_URL=https://<your-worker-origin> \
+AUTH_ADMIN_TOKEN='<your-admin-token>' \
+bun run admin client provision <cloudflare-team-name>
 ```
 
 Save the returned client secret immediately; Better Auth stores only its hash.
 
-## Cloudflare Access configuration
-
-In Zero Trust, add a generic OpenID Connect identity provider with the values returned by `client provision` and these endpoints:
+In Zero Trust, go to Integrations → Identity providers → Add new identity provider → OpenID Connect. Use the returned client ID and secret with:
 
 | Field | Value |
 |---|---|
-| Authorization URL | `https://auth.andrewe.dev/api/auth/oauth2/authorize` |
-| Token URL | `https://auth.andrewe.dev/api/auth/oauth2/token` |
-| Certificate/JWKS URL | `https://auth.andrewe.dev/api/auth/jwks` |
-| Discovery URL | `https://auth.andrewe.dev/.well-known/openid-configuration` |
+| Authorization URL | `https://<your-worker-origin>/api/auth/oauth2/authorize` |
+| Token URL | `https://<your-worker-origin>/api/auth/oauth2/token` |
+| Certificate/JWKS URL | `https://<your-worker-origin>/api/auth/jwks` |
+| Discovery URL | `https://<your-worker-origin>/.well-known/openid-configuration` |
 | Scopes | `openid email profile` |
 | Email claim | `email` |
 | PKCE | Enabled |
@@ -126,15 +68,57 @@ In Zero Trust, add a generic OpenID Connect identity provider with the values re
 The registered callback is:
 
 ```text
-https://<your-team>.cloudflareaccess.com/cdn-cgi/access/callback
+https://<cloudflare-team-name>.cloudflareaccess.com/cdn-cgi/access/callback
 ```
 
-## CLI administration
+Access policies continue to decide which emails and identities may reach each protected application. This identity provider only authenticates an invited user with a passkey and supplies the resulting OIDC identity to Access.
 
-All commands use `AUTH_ADMIN_URL` (default `https://auth.andrewe.dev`) and require `AUTH_ADMIN_TOKEN`.
+### Suggested Prompt
 
-```sh
-# Apply Better Auth and kit-specific D1 migrations
+```text
+Use authenticated Wrangler CLI and Cloudflare API or MCP to deploy this repository as a passkey identity provider for Cloudflare Access:
+
+https://github.com/andesco/better-auth-worker-kit
+
+Clone the repository, run bun install, verify authentication with bunx wrangler whoami, and deploy the included Worker with bun run deploy. Let Wrangler automatically provision and bind D1 from the draft DB binding and apply the included migrations. Do not manually create D1, hardcode an account ID or database ID, or rebuild the Worker from scratch.
+
+Create different 32-byte BETTER_AUTH_SECRET and ADMIN_TOKEN values and configure them as Worker secrets without printing or committing them. Discover the deployed Worker origin and the existing Cloudflare Access team name. Use the repository's Bun admin CLI to provision its single OIDC client, then configure a generic OpenID Connect identity provider in Cloudflare Access with PKCE enabled and the openid, email, and profile scopes.
+
+Cloudflare Access remains responsible for application policies, permitted emails, OTP, sessions, and MFA requirements. Do not add email OTP, magic links, password authentication, email allowlists, or MFA to the Worker. Its purpose is to add passkey primary authentication to Access.
+
+Ask the user which email identity to invite before creating the first invitation. After enrollment, verify OIDC discovery, JWKS, the Access authorization redirect, passkey sign-in, and access to a protected application.
+```
+
+## Responsibility Boundary
+
+| Better Auth Worker Kit | Cloudflare Access |
+|---|---|
+| Passkey registration and verification | Protected application policies |
+| Invitation-gated identity creation | Permitted emails and domains |
+| OIDC authorization, tokens, claims, and JWKS | OTP and identity-provider selection |
+| Passkey/session recovery through the CLI | MFA requirements and application sessions |
+| D1 persistence for the passkey identity provider | Final allow/deny decision for each application |
+
+The project is deliberately not a general-purpose replacement for Access authentication features. Relevant future work is passkey-focused: stronger enrollment policy, authenticator metadata or attestation controls, additional claims for Access policy evaluation, improved recovery operations, and better CLI ergonomics.
+
+## Security Profile
+
+- Passkeys are the only enabled interactive sign-in method.
+- Enrollment requires a cryptographically random, expiring, single-use invitation.
+- Resident credentials and user verification are required. The WebAuthn verification result is checked explicitly for the UV flag.
+- Dynamic OAuth client registration and user-managed OAuth client CRUD are disabled.
+- Exactly one confidential OIDC client can be provisioned. It requires PKCE, skips consent, and supports only the authorization-code grant.
+- Administration requires a separate high-entropy bearer token and exposes no browser dashboard.
+- Lost-passkey recovery is destructive and CLI-only: every existing passkey and session is revoked before a new invitation is issued.
+
+D1 is the system of record. KV is not required for correctness and should not replace D1 for relational authentication state.
+
+## CLI Administration
+
+All production commands require `AUTH_ADMIN_URL` and `AUTH_ADMIN_TOKEN`. The CLI communicates with a narrow authenticated command channel under `/__admin/v1`; “CLI-only” means the project exposes no browser administration interface.
+
+```bash
+# Apply or reconcile the schema
 bun run admin migrate
 
 # Create a seven-day invitation
@@ -150,20 +134,42 @@ bun run admin invite revoke <invitation-id>
 # Lost-passkey recovery; revokes every passkey and session first
 bun run admin user recover person@example.com --days 1
 
-# Provision and inspect the initial OIDC client
+# Provision and inspect the sole OIDC client
 bun run admin client provision <cloudflare-team-name>
 bun run admin client show
 ```
 
 Invitation URLs are credentials until consumed. Send them over a secure channel and avoid placing them in tickets, logs, or chat archives.
 
-The CLI communicates with a narrow authenticated command channel under `/__admin/v1`. “CLI-only” means the project exposes no browser administration interface; the server-side command channel still exists and must be protected with `ADMIN_TOKEN` and HTTPS.
+## Local Development
+
+```bash
+bun install
+cp .dev.vars.example .dev.vars
+bun run dev
+```
+
+In another shell:
+
+```bash
+AUTH_ADMIN_URL=http://localhost:8787 \
+AUTH_ADMIN_TOKEN=your-local-admin-token \
+bun run admin migrate
+```
+
+The working `.dev.vars` file and Wrangler state are gitignored.
 
 ## Verification
 
-```sh
+```bash
 bun run check
 bun test
 ```
 
 `bun run check` builds the browser client, verifies generated Worker binding types, type-checks TypeScript, and runs a Wrangler deployment dry run.
+
+[access]: https://developers.cloudflare.com/cloudflare-one/access-controls/
+[better-auth]: https://www.better-auth.com/
+[d1]: https://developers.cloudflare.com/d1/
+[workers]: https://developers.cloudflare.com/workers/
+[wrangler]: https://developers.cloudflare.com/workers/wrangler/

@@ -1,16 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "better-auth-worker-kit",
-  "account_id": "0a15c5f9d39350baa992ff9f48efc1c8",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-16",
   "compatibility_flags": ["nodejs_compat"],
-  "routes": [
-    {
-      "pattern": "auth.andrewe.dev",
-      "custom_domain": true
-    }
-  ],
   "assets": {
     "binding": "ASSETS",
     "directory": "./public",
@@ -20,9 +13,7 @@
   },
   "d1_databases": [
     {
-      "binding": "DB",
-      "database_name": "better-auth-worker-kit",
-      "database_id": "f1b72460-38d6-4993-9253-abbf903ab123"
+      "binding": "DB"
     }
   ],
   "observability": {

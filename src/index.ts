@@ -25,7 +25,7 @@ function securePage(response: Response): Response {
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
-    const auth = createAuth(env);
+    const auth = createAuth(env, request);
 
     try {
       if (url.pathname === "/health") return Response.json({ ok: true });

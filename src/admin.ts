@@ -1,4 +1,4 @@
-const baseUrl = (process.env.AUTH_ADMIN_URL ?? "https://auth.andrewe.dev").replace(/\/$/u, "");
+const baseUrl = (process.env.AUTH_ADMIN_URL ?? "http://localhost:8787").replace(/\/$/u, "");
 const token = process.env.AUTH_ADMIN_TOKEN;
 
 export {};

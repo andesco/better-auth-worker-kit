@@ -1,11 +1,12 @@
 {
   "name": "better-auth-worker-kit",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build:client": "bun build src/web/client.ts --outdir public/assets --target browser --minify",
     "dev": "bun run build:client && wrangler dev",
-    "deploy": "bun run build:client && wrangler deploy",
+    "deploy": "bun run build:client && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "admin": "bun src/admin.ts",
     "check": "bun run build:client && wrangler types --check && tsc --noEmit && wrangler deploy --dry-run",
     "test": "bun test"
@@ -20,5 +21,15 @@
     "@types/bun": "latest",
     "typescript": "latest",
     "wrangler": "^4.111.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "BETTER_AUTH_SECRET": {
+        "description": "Generate a unique secret with `openssl rand -hex 32`. It signs Better Auth cookies and tokens."
+      },
+      "ADMIN_TOKEN": {
+        "description": "Generate a different secret with `openssl rand -hex 32`. The Bun CLI uses it for migrations, invitations, recovery, and OIDC client provisioning."
+      }
+    }
   }
 }
