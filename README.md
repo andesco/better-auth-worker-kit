@@ -31,10 +31,10 @@ The enrollment form also requires:
 
 - A reusable Access **Allow** policy whose Include rules are exact Email selectors, with no Require rules or other selector types.
 - A restricted API token with `Access: Apps and Policies Read` for that account.
-- A managed Turnstile widget for the Worker hostname.
+- Optionally, a managed Turnstile widget for the Worker hostname. The committed template enables it; set `TURNSTILE_ENABLED` to `"false"` to disable it.
 - A sender domain onboarded to Cloudflare Email Sending and an address on that domain.
 
-These deployment-specific values are requested as bindings: `CLOUDFLARE_ACCOUNT_ID`, `ACCESS_POLICY_ID`, `CLOUDFLARE_API_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, and `INVITATION_FROM`.
+These deployment-specific values are requested as bindings: `CLOUDFLARE_ACCOUNT_ID`, `ACCESS_POLICY_ID`, `CLOUDFLARE_API_TOKEN`, and `INVITATION_FROM`. `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required only when `TURNSTILE_ENABLED` is `"true"`.
 
 ### Wrangler CLI
 
@@ -57,6 +57,14 @@ bunx wrangler email sending enable send.example.com
 ```
 
 Set the enrollment bindings with `wrangler secret put`, or use one JSON object over standard input with `wrangler secret bulk`. Never commit the Access API token or Turnstile secret. The Email Sending binding is intentionally unrestricted in the reusable template because each deployment chooses its own sender domain; the application always sends from `INVITATION_FROM`.
+
+Turnstile is an optional enrollment-form gate, not part of passkey authentication. The committed `wrangler.jsonc` enables it for the reusable template. A deployment that already limits invitations through an Access policy and rate limiter can disable it:
+
+```jsonc
+{
+  "vars": { "TURNSTILE_ENABLED": "false" }
+}
+```
 
 ### Connect Cloudflare Access
 
@@ -92,7 +100,7 @@ Access policies continue to decide which emails and identities may reach each pr
 
 ### Passkey discovery and labels
 
-Registration requires a resident, discoverable credential, so sign-in does not ask for an email or username before opening the passkey chooser. The sign-in page also starts Better Auth's Conditional UI flow: supported browsers can suggest a saved passkey through autofill when the email field is focused, while the passkey button remains available everywhere else.
+Registration requires a resident, discoverable credential, so the passkey button can open a usernameless account chooser. The sign-in section also has its own email field with `autocomplete="username webauthn"` and starts Better Auth's Conditional UI flow. Supported browsers can suggest a saved passkey when that dedicated sign-in field is focused. The separate invitation-request email field does not participate in passkey discovery.
 
 The verified invitation email is used as the WebAuthn user name and display name and as the passkey label stored by Better Auth. This does not put the email into the public key or expose it through JWKS. It does mean that the user's passkey manager may display the email on devices where that passkey is available, which is intentional for account identification.
 
@@ -109,7 +117,7 @@ Clone the repository, run bun install, verify authentication with bunx wrangler 
 
 Create different 32-byte BETTER_AUTH_SECRET and ADMIN_TOKEN values and configure them as Worker secrets without printing or committing them. Discover the deployed Worker origin and the existing Cloudflare Access team name. Use the repository's Bun admin CLI to provision its single OIDC client, then configure a generic OpenID Connect identity provider in Cloudflare Access with PKCE enabled and the openid, email, and profile scopes.
 
-Cloudflare Access remains responsible for application policies, permitted emails, OTP, sessions, and MFA requirements. Configure one reusable exact-email Access policy as the enrollment source. Add Cloudflare Email Sending and Turnstile, then set the Worker enrollment bindings without printing or committing secrets. Do not add email OTP, magic links, password authentication, a separate email allowlist, or MFA to the Worker. Its purpose is to add passkey primary authentication to Access.
+Cloudflare Access remains responsible for application policies, permitted emails, OTP, sessions, and MFA requirements. Configure one reusable exact-email Access policy as the enrollment source. Add Cloudflare Email Sending, optionally configure Turnstile, then set the Worker enrollment bindings without printing or committing secrets. Do not add email OTP, magic links, password authentication, a separate email allowlist, or MFA to the Worker. Its purpose is to add passkey primary authentication to Access.
 
 Ask the user which email identity to invite before creating the first invitation. After enrollment, verify OIDC discovery, JWKS, the Access authorization redirect, passkey sign-in, and access to a protected application.
 ```
@@ -131,7 +139,7 @@ The project is deliberately not a general-purpose replacement for Access authent
 
 - Passkeys are the only enabled interactive sign-in method.
 - Enrollment requires a cryptographically random, expiring, single-use invitation.
-- The public request form always returns the same “If authorized” response. Turnstile and a per-IP rate limiter run before policy lookup.
+- The public request form always returns the same “If authorized” response. A per-IP rate limiter runs before policy lookup; Turnstile can optionally run there as an additional gate.
 - Enrollment eligibility comes directly from one reusable Access Allow policy. Only exact Email selectors are accepted; unsupported policy shapes fail closed.
 - Invitation email is transactional, includes HTML and plain-text bodies, and is sent through the native Cloudflare Email Service binding.
 - Resident credentials and user verification are required. The WebAuthn verification result is checked explicitly for the UV flag.
@@ -191,10 +199,26 @@ bun run admin migrate
 
 The working `.dev.vars` file and Wrangler state are gitignored.
 
+### Personal deployment config
+
+Keep account-specific resource IDs, routes, sender restrictions, and feature choices in `wrangler.local.jsonc`. That filename is gitignored so the committed `wrangler.jsonc` remains reusable and ID-free. This repository's personal config disables Turnstile and binds the existing production D1 database explicitly.
+
+Use the committed Bun scripts so every personal operation selects the local config consistently:
+
+```bash
+bun run check:local
+bun run dev:local
+bun run migrate:local
+bun run deploy:local
+```
+
+The ordinary `bun run check`, `bun run dev`, and `bun run deploy` commands continue to use the generic committed configuration.
+
 ## Verification
 
 ```bash
 bun run check
+bun run check:local # when wrangler.local.jsonc exists
 bun test
 ```
 

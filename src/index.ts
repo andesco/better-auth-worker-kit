@@ -11,12 +11,14 @@ function redirect(location: string): Response {
   });
 }
 
-function securePage(response: Response): Response {
+function securePage(response: Response, turnstileEnabled: boolean): Response {
   const headers = new Headers(response.headers);
   headers.set("cache-control", "no-store");
   headers.set(
     "content-security-policy",
-    "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    turnstileEnabled
+      ? "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+      : "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
   );
   headers.set("permissions-policy", "publickey-credentials-create=(self), publickey-credentials-get=(self)");
   headers.set("referrer-policy", "no-referrer");
@@ -37,8 +39,12 @@ export default {
         return await handleInvitationRequest(request, env, auth, ctx);
       }
       if (url.pathname === "/api/config") {
-        return Response.json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY }, {
-          headers: { "cache-control": "public, max-age=300" },
+        const turnstileEnabled = env.TURNSTILE_ENABLED === "true";
+        return Response.json({
+          turnstileEnabled,
+          ...(turnstileEnabled ? { turnstileSiteKey: env.TURNSTILE_SITE_KEY } : {}),
+        }, {
+          headers: { "cache-control": "no-store" },
         });
       }
       if (url.pathname === "/api/invitations/status" && request.method === "GET") {
@@ -76,7 +82,7 @@ export default {
       }
       const asset = await env.ASSETS.fetch(request);
       return url.pathname === "/sign-in.html" || url.pathname === "/invite.html"
-        ? securePage(asset)
+        ? securePage(asset, env.TURNSTILE_ENABLED === "true")
         : asset;
     } catch (error) {
       const details = error instanceof Response

@@ -6,3 +6,4 @@ CLOUDFLARE_API_TOKEN=restricted-access-apps-and-policies-read-token
 TURNSTILE_SITE_KEY=your-turnstile-site-key
 TURNSTILE_SECRET_KEY=your-turnstile-secret-key
 INVITATION_FROM=auth@send.example.com
+TURNSTILE_ENABLED=true

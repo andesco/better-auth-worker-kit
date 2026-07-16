@@ -20,7 +20,7 @@ async function readRequest(request: Request): Promise<{ email: string; turnstile
   const value = body as Record<string, unknown>;
   const email = typeof value.email === "string" ? value.email.trim().toLowerCase() : "";
   const turnstileToken = typeof value.turnstileToken === "string" ? value.turnstileToken : "";
-  if (email.length > 254 || !/^\S+@\S+\.\S+$/u.test(email) || !turnstileToken) return null;
+  if (email.length > 254 || !/^\S+@\S+\.\S+$/u.test(email)) return null;
   return { email, turnstileToken };
 }
 
@@ -70,7 +70,12 @@ export async function handleInvitationRequest(
 
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const rate = await env.INVITE_RATE_LIMITER.limit({ key: ip });
-  if (!rate.success || !(await verifyTurnstile(env, input.turnstileToken, request))) return response();
+  const turnstileEnabled = env.TURNSTILE_ENABLED === "true";
+  if (!rate.success ||
+      (turnstileEnabled &&
+        (!input.turnstileToken || !(await verifyTurnstile(env, input.turnstileToken, request))))) {
+    return response();
+  }
 
   ctx.waitUntil(processRequest(request, env, auth, input.email));
   return response();

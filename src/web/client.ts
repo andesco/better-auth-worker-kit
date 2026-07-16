@@ -9,6 +9,19 @@ function element<T extends HTMLElement>(id: string): T {
   return value as T;
 }
 
+async function loadTurnstile(): Promise<void> {
+  if (window.turnstile) return;
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Turnstile failed to load"));
+    document.head.appendChild(script);
+  });
+}
+
 function setStatus(message: string, error = false): void {
   const status = element<HTMLOutputElement>("status");
   status.textContent = message;
@@ -34,19 +47,27 @@ async function setupInvitationRequest(): Promise<void> {
   const form = document.getElementById("invite-request-form") as HTMLFormElement | null;
   if (!form) return;
   const configResponse = await fetch("/api/config");
-  const config = await configResponse.json() as { turnstileSiteKey: string };
-  while (!window.turnstile) await new Promise((resolve) => window.setTimeout(resolve, 50));
-  const widgetId = window.turnstile.render("#turnstile-widget", {
-    sitekey: config.turnstileSiteKey,
-    action: "turnstile-spin-v1",
-    size: "flexible",
-    theme: "light",
-  });
+  const config = await configResponse.json() as {
+    turnstileEnabled: boolean;
+    turnstileSiteKey?: string;
+  };
+  let widgetId: string | undefined;
+  if (config.turnstileEnabled && config.turnstileSiteKey) {
+    await loadTurnstile();
+    widgetId = window.turnstile?.render("#turnstile-widget", {
+      sitekey: config.turnstileSiteKey,
+      action: "turnstile-spin-v1",
+      size: "flexible",
+      theme: "light",
+    });
+  } else {
+    document.getElementById("turnstile-widget")?.remove();
+  }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const status = element<HTMLOutputElement>("invite-request-status");
     const email = element<HTMLInputElement>("invite-email").value;
-    const turnstileToken = window.turnstile?.getResponse(widgetId) ?? "";
+    const turnstileToken = widgetId ? window.turnstile?.getResponse(widgetId) ?? "" : "";
     status.textContent = "Submitting…";
     try {
       const result = await fetch("/api/invitations/request", {
@@ -60,7 +81,7 @@ async function setupInvitationRequest(): Promise<void> {
     } catch {
       status.textContent = "If authorized, we'll send an invitation email.";
     } finally {
-      window.turnstile?.reset(widgetId);
+      if (widgetId) window.turnstile?.reset(widgetId);
     }
   });
 }

@@ -4,6 +4,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-16",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "TURNSTILE_ENABLED": "true"
+  },
   "assets": {
     "binding": "ASSETS",
     "directory": "./public",

@@ -6,9 +6,13 @@
   "scripts": {
     "build:client": "bun build src/web/client.ts --outdir public/assets --target browser --minify",
     "dev": "bun run build:client && wrangler dev",
+    "dev:local": "bun run build:client && wrangler dev --config wrangler.local.jsonc",
     "deploy": "bun run build:client && wrangler deploy && wrangler d1 migrations apply DB --remote",
+    "deploy:local": "bun run build:client && wrangler deploy --config wrangler.local.jsonc && wrangler d1 migrations apply DB --config wrangler.local.jsonc --remote",
+    "migrate:local": "wrangler d1 migrations apply DB --config wrangler.local.jsonc --remote",
     "admin": "bun src/admin.ts",
     "check": "bun run build:client && wrangler types --check --env-file .dev.vars.example && tsc --noEmit && wrangler deploy --dry-run",
+    "check:local": "bun run build:client && wrangler types --check --config wrangler.local.jsonc --env-file .dev.vars.example && tsc --noEmit && wrangler deploy --dry-run --config wrangler.local.jsonc",
     "test": "bun test"
   },
   "dependencies": {
