@@ -6,7 +6,7 @@
   "scripts": {
     "build:client": "bun build src/web/client.ts --outdir public/assets --target browser --minify",
     "dev": "bun run build:client && wrangler dev",
-    "deploy": "bun run build:client && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy": "bun run build:client && wrangler deploy && wrangler d1 migrations apply DB --remote",
     "admin": "bun src/admin.ts",
     "check": "bun run build:client && wrangler types --check && tsc --noEmit && wrangler deploy --dry-run",
     "test": "bun test"

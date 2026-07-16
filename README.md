@@ -18,7 +18,7 @@ Workers & Pages → [**Create application**](https://dash.cloudflare.com/?to=/:a
 https://github.com/andesco/better-auth-worker-kit
 ```
 
-Cloudflare automatically provisions and binds D1 from the draft `DB` binding in `wrangler.jsonc`. The deploy script applies the included schema migration; do not create a database manually or add an account-specific database ID to the repository.
+Cloudflare automatically provisions and binds D1 from the draft `DB` binding in `wrangler.jsonc`. The deploy script applies the included schema migration immediately after the Worker is created; do not create a database manually or add an account-specific database ID to the repository.
 
 During setup, provide two different high-entropy secrets:
 
@@ -39,7 +39,7 @@ bunx wrangler secret put BETTER_AUTH_SECRET
 bunx wrangler secret put ADMIN_TOKEN
 ```
 
-The first deploy automatically provisions D1, applies `migrations/0001_initial.sql`, and deploys the Worker. Adding each secret creates a new production Worker version.
+The first deploy creates the Worker, automatically provisions D1, and then applies `migrations/0001_initial.sql`. Adding each secret creates a new production Worker version.
 
 ### Connect Cloudflare Access
 
