@@ -1,8 +1,8 @@
 # Better Auth Worker Kit
 
-**Better Auth Worker Kit** adds passkey authentication to [Cloudflare&nbsp;Access][access] by running [Better&nbsp;Auth][better-auth] as a small OpenID Connect identity provider on [Cloudflare&nbsp;Workers][workers]. Authentication state is stored in [Cloudflare&nbsp;D1][d1], and administration remains CLI-only.
+**Better Auth Worker Kit** adds passkey authentication to [Cloudflare&nbsp;Access][access] by running [Better&nbsp;Auth][better-auth] as a small OpenID Connect identity provider on [Cloudflare&nbsp;Workers][workers]. Authentication state is stored in [Cloudflare&nbsp;D1][d1], administration remains CLI-only, and authorized users can request their own invitation by email.
 
-Cloudflare Access is still the access-control layer. It continues to handle application policies, permitted email addresses, sessions, identity-provider selection, and any OTP or MFA requirements. This Worker exists to add a passkey-capable primary sign-in option that Access does not provide on its own.
+Cloudflare Access is still the access-control layer. It continues to handle application policies, permitted email addresses, sessions, identity-provider selection, and any OTP or MFA requirements. The Worker reads one reusable Access policy containing exact email selectors, sends an invitation only when the submitted address is listed, and never reveals the result in its browser response.
 
 This is an independent community project. It is not an official Better Auth or Cloudflare project.
 
@@ -27,6 +27,15 @@ During setup, provide two different high-entropy secrets:
 
 Generate each value independently with `openssl rand -hex 32`.
 
+The enrollment form also requires:
+
+- A reusable Access **Allow** policy whose Include rules are exact Email selectors, with no Require rules or other selector types.
+- A restricted API token with `Access: Apps and Policies Read` for that account.
+- A managed Turnstile widget for the Worker hostname.
+- A sender domain onboarded to Cloudflare Email Sending and an address on that domain.
+
+These deployment-specific values are requested as bindings: `CLOUDFLARE_ACCOUNT_ID`, `ACCESS_POLICY_ID`, `CLOUDFLARE_API_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, and `INVITATION_FROM`.
+
 ### Wrangler CLI
 
 ```bash
@@ -40,6 +49,14 @@ bunx wrangler secret put ADMIN_TOKEN
 ```
 
 The first deploy creates the Worker, automatically provisions D1, and then applies `migrations/0001_initial.sql`. Adding each secret creates a new production Worker version.
+
+Onboard the sender domain before invitations are requested:
+
+```bash
+bunx wrangler email sending enable send.example.com
+```
+
+Set the enrollment bindings with `wrangler secret put`, or use one JSON object over standard input with `wrangler secret bulk`. Never commit the Access API token or Turnstile secret. The Email Sending binding is intentionally unrestricted in the reusable template because each deployment chooses its own sender domain; the application always sends from `INVITATION_FROM`.
 
 ### Connect Cloudflare Access
 
@@ -73,6 +90,14 @@ https://<cloudflare-team-name>.cloudflareaccess.com/cdn-cgi/access/callback
 
 Access policies continue to decide which emails and identities may reach each protected application. This identity provider only authenticates an invited user with a passkey and supplies the resulting OIDC identity to Access.
 
+### Passkey discovery and labels
+
+Registration requires a resident, discoverable credential, so sign-in does not ask for an email or username before opening the passkey chooser. The sign-in page also starts Better Auth's Conditional UI flow: supported browsers can suggest a saved passkey through autofill when the email field is focused, while the passkey button remains available everywhere else.
+
+The verified invitation email is used as the WebAuthn user name and display name and as the passkey label stored by Better Auth. This does not put the email into the public key or expose it through JWKS. It does mean that the user's passkey manager may display the email on devices where that passkey is available, which is intentional for account identification.
+
+For self-service enrollment, set `ACCESS_POLICY_ID` to the reusable exact-email Allow policy that represents the users eligible to enroll. The Worker fails closed if that policy contains email domains, groups, device posture, geography, external evaluation, Require rules, or any other selector it cannot evaluate from an untrusted email submission. Access can still use richer policies when it evaluates actual authenticated requests.
+
 ### Suggested Prompt
 
 ```text
@@ -84,7 +109,7 @@ Clone the repository, run bun install, verify authentication with bunx wrangler 
 
 Create different 32-byte BETTER_AUTH_SECRET and ADMIN_TOKEN values and configure them as Worker secrets without printing or committing them. Discover the deployed Worker origin and the existing Cloudflare Access team name. Use the repository's Bun admin CLI to provision its single OIDC client, then configure a generic OpenID Connect identity provider in Cloudflare Access with PKCE enabled and the openid, email, and profile scopes.
 
-Cloudflare Access remains responsible for application policies, permitted emails, OTP, sessions, and MFA requirements. Do not add email OTP, magic links, password authentication, email allowlists, or MFA to the Worker. Its purpose is to add passkey primary authentication to Access.
+Cloudflare Access remains responsible for application policies, permitted emails, OTP, sessions, and MFA requirements. Configure one reusable exact-email Access policy as the enrollment source. Add Cloudflare Email Sending and Turnstile, then set the Worker enrollment bindings without printing or committing secrets. Do not add email OTP, magic links, password authentication, a separate email allowlist, or MFA to the Worker. Its purpose is to add passkey primary authentication to Access.
 
 Ask the user which email identity to invite before creating the first invitation. After enrollment, verify OIDC discovery, JWKS, the Access authorization redirect, passkey sign-in, and access to a protected application.
 ```
@@ -94,7 +119,8 @@ Ask the user which email identity to invite before creating the first invitation
 | Better Auth Worker Kit | Cloudflare Access |
 |---|---|
 | Passkey registration and verification | Protected application policies |
-| Invitation-gated identity creation | Permitted emails and domains |
+| Policy-backed, invitation-gated identity creation | Permitted emails, domains, and groups |
+| Transactional invitation delivery | Final policy evaluation for authenticated requests |
 | OIDC authorization, tokens, claims, and JWKS | OTP and identity-provider selection |
 | Passkey/session recovery through the CLI | MFA requirements and application sessions |
 | D1 persistence for the passkey identity provider | Final allow/deny decision for each application |
@@ -105,9 +131,15 @@ The project is deliberately not a general-purpose replacement for Access authent
 
 - Passkeys are the only enabled interactive sign-in method.
 - Enrollment requires a cryptographically random, expiring, single-use invitation.
+- The public request form always returns the same “If authorized” response. Turnstile and a per-IP rate limiter run before policy lookup.
+- Enrollment eligibility comes directly from one reusable Access Allow policy. Only exact Email selectors are accepted; unsupported policy shapes fail closed.
+- Invitation email is transactional, includes HTML and plain-text bodies, and is sent through the native Cloudflare Email Service binding.
 - Resident credentials and user verification are required. The WebAuthn verification result is checked explicitly for the UV flag.
+- Sign-in is usernameless and supports browser Conditional UI/autofill for discoverable passkeys.
+- Passkeys are labeled with the policy-authorized invitation email instead of a generic “Primary passkey” name.
 - Dynamic OAuth client registration and user-managed OAuth client CRUD are disabled.
 - Exactly one confidential OIDC client can be provisioned. It requires PKCE, skips consent, and supports only the authorization-code grant.
+- OIDC ID tokens use RS256 because Cloudflare Access does not support Better Auth's default Ed25519/OKP signing keys.
 - Administration requires a separate high-entropy bearer token and exposes no browser dashboard.
 - Lost-passkey recovery is destructive and CLI-only: every existing passkey and session is revoked before a new invitation is issued.
 
@@ -139,7 +171,7 @@ bun run admin client provision <cloudflare-team-name>
 bun run admin client show
 ```
 
-Invitation URLs are credentials until consumed. Send them over a secure channel and avoid placing them in tickets, logs, or chat archives.
+Invitation URLs are credentials until consumed. CLI-created URLs should be sent over a secure channel and kept out of tickets, logs, and chat archives. Policy-authorized users can instead request an email from the sign-in page; repeated delivery is suppressed for ten minutes.
 
 ## Local Development
 

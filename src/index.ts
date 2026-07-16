@@ -1,6 +1,8 @@
 import { createAuth } from "./auth";
 import { handleAdmin } from "./admin-api";
 import { ADMIN_BASE_PATH } from "./constants";
+import { handleInvitationRequest } from "./invitation-request";
+import { invitationRegistrationComplete } from "./invitations";
 
 function redirect(location: string): Response {
   return new Response(null, {
@@ -14,7 +16,7 @@ function securePage(response: Response): Response {
   headers.set("cache-control", "no-store");
   headers.set(
     "content-security-policy",
-    "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
   );
   headers.set("permissions-policy", "publickey-credentials-create=(self), publickey-credentials-get=(self)");
   headers.set("referrer-policy", "no-referrer");
@@ -23,7 +25,7 @@ function securePage(response: Response): Response {
 }
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
     const auth = createAuth(env, request);
 
@@ -31,6 +33,19 @@ export default {
       if (url.pathname === "/health") return Response.json({ ok: true });
       if (url.pathname === "/") return redirect("/sign-in");
       if (url.pathname === "/sign-in") return redirect(`/sign-in.html${url.search}`);
+      if (url.pathname === "/api/invitations/request") {
+        return await handleInvitationRequest(request, env, auth, ctx);
+      }
+      if (url.pathname === "/api/config") {
+        return Response.json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY }, {
+          headers: { "cache-control": "public, max-age=300" },
+        });
+      }
+      if (url.pathname === "/api/invitations/status" && request.method === "GET") {
+        const token = url.searchParams.get("token") ?? "";
+        const complete = token.length <= 128 && await invitationRegistrationComplete(env.DB, token);
+        return Response.json({ complete }, { headers: { "cache-control": "no-store" } });
+      }
       if (url.pathname === "/consent") {
         return new Response("Consent is disabled for the trusted Cloudflare Access client.", {
           status: 403,

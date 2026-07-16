@@ -8,13 +8,30 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body data-page="invite">
-    <main>
-      <div class="mark" aria-hidden="true">A</div>
-      <h1>Create your passkey.</h1>
-      <p>This deployment currently uses passkeys only. Your device will ask for Face ID, Touch ID, a PIN, or a security key.</p>
-      <button id="primary-action" type="button">Create passkey</button>
-      <output id="status" aria-live="polite"></output>
-      <p class="fine">Invitation links are single-use and expire automatically.</p>
+    <main class="auth-shell">
+      <header class="brand" aria-label="Better Auth Worker Kit">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span>Better Auth Worker Kit</span>
+      </header>
+      <section class="auth-card" aria-labelledby="invite-title">
+        <div class="auth-card__body">
+          <div class="app-identity">
+            <span>better-auth-worker-kit</span>
+          </div>
+          <div class="card-heading">
+            <h1 id="invite-title">Create your passkey</h1>
+            <p>A passkey signs you in without a password.</p>
+          </div>
+          <div class="information-panel">
+            Your device will ask for Face ID, Touch ID, a PIN, or a security key.
+          </div>
+          <div class="auth-options">
+            <button id="primary-action" class="primary-button" type="button">Create passkey</button>
+            <output id="status" aria-live="polite"></output>
+            <p class="fine-print">Invitation links are single-use and expire automatically.</p>
+          </div>
+        </div>
+      </section>
     </main>
     <script type="module" src="/assets/client.js"></script>
   </body>

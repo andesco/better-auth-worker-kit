@@ -6,15 +6,51 @@
     <meta name="robots" content="noindex">
     <title>Sign in — Better Auth Worker Kit</title>
     <link rel="stylesheet" href="/styles.css">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   </head>
   <body data-page="sign-in">
-    <main>
-      <div class="mark" aria-hidden="true">A</div>
-      <h1>Welcome back.</h1>
-      <p>Use the passkey saved on your device or security key. There are no passwords or recovery emails.</p>
-      <button id="primary-action" type="button">Sign in with passkey</button>
-      <output id="status" aria-live="polite"></output>
-      <p class="fine">Access is invitation-only.</p>
+    <main class="auth-shell">
+      <header class="brand" aria-label="Better Auth Worker Kit">
+        <span class="brand-mark" aria-hidden="true">B</span>
+        <span>Better Auth Worker Kit</span>
+      </header>
+      <section class="auth-card" aria-labelledby="sign-in-title">
+        <div class="auth-card__body">
+          <div class="app-identity">
+            <span>better-auth-worker-kit</span>
+          </div>
+          <h1 id="sign-in-title">Log in to Better Auth Worker Kit</h1>
+          <div class="auth-options">
+            <div class="auth-group">
+              <p class="field-label">Sign in with:</p>
+              <button id="primary-action" class="provider-button" type="button">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="8.5" cy="15.5" r="3.5"></circle>
+                  <path d="M11 13l8-8M15 5h4v4M14 10l2 2"></path>
+                </svg>
+                <span>Passkey ・ This device or security key</span>
+              </button>
+              <output id="status" aria-live="polite"></output>
+            </div>
+
+            <div class="divider" role="separator" aria-orientation="horizontal"><span>or</span></div>
+
+            <section class="request-invite" aria-label="Request an invitation">
+              <form id="invite-request-form">
+                <div class="form-row">
+                  <label for="invite-email">Email</label>
+              <input id="invite-email" name="email" type="email" autocomplete="email webauthn" placeholder="example@email.com" required maxlength="254">
+                </div>
+                <div id="turnstile-widget"></div>
+                <div class="form-row">
+                  <button class="primary-button" type="submit">Request invitation</button>
+                </div>
+              </form>
+              <output id="invite-request-status" aria-live="polite"></output>
+            </section>
+          </div>
+        </div>
+      </section>
     </main>
     <script type="module" src="/assets/client.js"></script>
   </body>

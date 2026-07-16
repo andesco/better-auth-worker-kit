@@ -22,7 +22,12 @@ export function createAuth(env: Env, request: Request) {
       useSecureCookies: true,
     },
     plugins: [
-      jwt(),
+      jwt({
+        jwks: {
+          keyPairConfig: { alg: "RS256", modulusLength: 2048 },
+        },
+        disableSettingJwtHeader: true,
+      }),
       passkey({
         rpID,
         rpName: APP_NAME,
@@ -53,6 +58,7 @@ export function createAuth(env: Env, request: Request) {
             if (invitation.user_id !== user.id) {
               throw new APIError("FORBIDDEN", { message: "Invitation does not match this user" });
             }
+            return { name: invitation.email };
           },
         },
         authentication: {

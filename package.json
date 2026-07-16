@@ -8,7 +8,7 @@
     "dev": "bun run build:client && wrangler dev",
     "deploy": "bun run build:client && wrangler deploy && wrangler d1 migrations apply DB --remote",
     "admin": "bun src/admin.ts",
-    "check": "bun run build:client && wrangler types --check && tsc --noEmit && wrangler deploy --dry-run",
+    "check": "bun run build:client && wrangler types --check --env-file .dev.vars.example && tsc --noEmit && wrangler deploy --dry-run",
     "test": "bun test"
   },
   "dependencies": {
@@ -29,6 +29,24 @@
       },
       "ADMIN_TOKEN": {
         "description": "Generate a different secret with `openssl rand -hex 32`. The Bun CLI uses it for migrations, invitations, recovery, and OIDC client provisioning."
+      },
+      "CLOUDFLARE_ACCOUNT_ID": {
+        "description": "Cloudflare account ID containing the reusable enrollment policy."
+      },
+      "ACCESS_POLICY_ID": {
+        "description": "ID of a reusable Allow policy containing only exact Email selectors."
+      },
+      "CLOUDFLARE_API_TOKEN": {
+        "description": "A restricted token with Access: Apps and Policies Read for the selected account."
+      },
+      "TURNSTILE_SITE_KEY": {
+        "description": "Public site key for a managed Turnstile widget configured for the Worker hostname."
+      },
+      "TURNSTILE_SECRET_KEY": {
+        "description": "Secret key for the same Turnstile widget."
+      },
+      "INVITATION_FROM": {
+        "description": "Onboarded Cloudflare Email Sending address, such as auth@send.example.com."
       }
     }
   }

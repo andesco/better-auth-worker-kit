@@ -1,5 +1,7 @@
 import { APIError } from "better-auth/api";
 import { sha256Hex } from "./crypto";
+import { randomToken } from "./crypto";
+import type { Auth } from "./auth";
 
 export interface InvitationRow {
   id: string;
@@ -59,4 +61,60 @@ export async function consumeInvitation(db: D1Database, token: string): Promise<
   }
 
   return invitation;
+}
+
+export async function invitationRegistrationComplete(db: D1Database, token: string): Promise<boolean> {
+  if (!token) return false;
+  const result = await db.prepare(
+    `SELECT p.id
+     FROM invitation i
+     INNER JOIN passkey p ON p.userId = i.user_id
+     WHERE i.token_hash = ?1 AND i.used_at IS NOT NULL
+     LIMIT 1`,
+  ).bind(await sha256Hex(token)).first<{ id: string }>();
+  return Boolean(result);
+}
+
+export async function issueInvitation(
+  auth: Auth,
+  db: D1Database,
+  email: string,
+  days: number,
+): Promise<{ token: string; expiresAt: number } | null> {
+  const context = await auth.$context;
+  const existing = await context.internalAdapter.findUserByEmail(email, { includeAccounts: false });
+  let user = existing?.user;
+  if (user) {
+    const passkey = await db.prepare("SELECT id FROM passkey WHERE userId = ?1 LIMIT 1")
+      .bind(user.id).first<{ id: string }>();
+    if (passkey) return null;
+    const recent = await db.prepare(
+      "SELECT id FROM invitation WHERE user_id = ?1 AND created_at > ?2 LIMIT 1",
+    ).bind(user.id, Date.now() - 600_000).first<{ id: string }>();
+    if (recent) return null;
+  } else {
+    user = await context.internalAdapter.createUser({ email, name: email, emailVerified: true });
+  }
+
+  const token = randomToken();
+  const now = Date.now();
+  const expiresAt = now + days * 86_400_000;
+  try {
+    await db.prepare(
+      `INSERT INTO invitation
+        (id, token_hash, email, user_id, expires_at, used_at, revoked_at, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, ?6)
+       ON CONFLICT(user_id) DO UPDATE SET
+         token_hash = excluded.token_hash,
+         email = excluded.email,
+         expires_at = excluded.expires_at,
+         used_at = NULL,
+         revoked_at = NULL,
+         created_at = excluded.created_at`,
+    ).bind(crypto.randomUUID(), await sha256Hex(token), email, user.id, expiresAt, now).run();
+  } catch (error) {
+    if (!existing) await context.internalAdapter.deleteUser(user.id);
+    throw error;
+  }
+  return { token, expiresAt };
 }
