@@ -1,7 +1,8 @@
 import { passkeyClient } from "@better-auth/passkey/client";
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { createAuthClient } from "better-auth/client";
 
-const auth = createAuthClient({ plugins: [passkeyClient()] });
+const auth = createAuthClient({ plugins: [oauthProviderClient(), passkeyClient()] });
 
 function element<T extends HTMLElement>(id: string): T {
   const value = document.getElementById(id);
@@ -86,22 +87,14 @@ async function setupInvitationRequest(): Promise<void> {
   });
 }
 
-async function signIn(autoFill = false): Promise<void> {
-  if (!autoFill) setStatus("Waiting for your passkey…");
-  const result = await auth.signIn.passkey({ autoFill });
+async function signIn(): Promise<void> {
+  setStatus("Waiting for your passkey…");
+  const result = await auth.signIn.passkey();
   if (result?.error) {
-    if (!autoFill) setStatus(result.error.message ?? "Passkey sign-in failed.", true);
+    setStatus(result.error.message ?? "Passkey sign-in failed.", true);
     return;
   }
   setStatus("Signed in. Continuing…");
-  window.location.reload();
-}
-
-async function setupConditionalSignIn(): Promise<void> {
-  if (typeof PublicKeyCredential === "undefined" ||
-      typeof PublicKeyCredential.isConditionalMediationAvailable !== "function") return;
-  if (!(await PublicKeyCredential.isConditionalMediationAvailable())) return;
-  await signIn(true);
 }
 
 async function register(): Promise<void> {
@@ -151,5 +144,4 @@ if (action === "sign-in" && new URLSearchParams(window.location.search).get("reg
 }
 if (action === "sign-in") {
   void setupInvitationRequest();
-  void setupConditionalSignIn();
 }

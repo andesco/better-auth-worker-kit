@@ -100,7 +100,7 @@ Access policies continue to decide which emails and identities may reach each pr
 
 ### Passkey discovery and labels
 
-Registration requires a resident, discoverable credential, so the passkey button can open a usernameless account chooser. The sign-in section also has its own email field with `autocomplete="username webauthn"` and starts Better Auth's Conditional UI flow. Supported browsers can suggest a saved passkey when that dedicated sign-in field is focused. The separate invitation-request email field does not participate in passkey discovery.
+Registration requires a resident, discoverable credential. Sign-in is explicitly usernameless: selecting the passkey button opens the browser or operating system's passkey account chooser without first requesting an email address. The only email field on the page belongs to the separate invitation-request form and does not participate in passkey authentication.
 
 The verified invitation email is used as the WebAuthn user name and display name and as the passkey label stored by Better Auth. This does not put the email into the public key or expose it through JWKS. It does mean that the user's passkey manager may display the email on devices where that passkey is available, which is intentional for account identification.
 
@@ -143,11 +143,11 @@ The project is deliberately not a general-purpose replacement for Access authent
 - Enrollment eligibility comes directly from one reusable Access Allow policy. Only exact Email selectors are accepted; unsupported policy shapes fail closed.
 - Invitation email is transactional, includes HTML and plain-text bodies, and is sent through the native Cloudflare Email Service binding.
 - Resident credentials and user verification are required. The WebAuthn verification result is checked explicitly for the UV flag.
-- Sign-in is usernameless and supports browser Conditional UI/autofill for discoverable passkeys.
+- Sign-in is usernameless and opens the browser or operating system's account chooser for discoverable passkeys.
 - Passkeys are labeled with the policy-authorized invitation email instead of a generic “Primary passkey” name.
 - Dynamic OAuth client registration and user-managed OAuth client CRUD are disabled.
 - Exactly one confidential OIDC client can be provisioned. It requires PKCE, skips consent, and supports only the authorization-code grant.
-- OIDC ID tokens use RS256 because Cloudflare Access does not support Better Auth's default Ed25519/OKP signing keys.
+- OIDC ID tokens use RS256 because Cloudflare Access does not support Better Auth's default Ed25519/OKP signing keys. The included migration removes incompatible legacy keys when upgrading an existing deployment so Better Auth can generate an RSA key.
 - Administration requires a separate high-entropy bearer token and exposes no browser dashboard.
 - Lost-passkey recovery is destructive and CLI-only: every existing passkey and session is revoked before a new invitation is issued.
 
