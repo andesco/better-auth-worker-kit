@@ -211,7 +211,7 @@ The working `.dev.vars` file and Wrangler state are gitignored.
 
 ### Personal deployment config
 
-Keep account-specific resource IDs, routes, sender restrictions, and feature choices in `wrangler.local.jsonc`. That filename is gitignored so the committed `wrangler.jsonc` remains reusable and ID-free. This repository's personal config disables Turnstile and binds the existing production D1 database explicitly.
+Keep account-specific resource IDs, routes, sender restrictions, application name, and feature choices in `wrangler.local.jsonc`. That filename is gitignored so the committed `wrangler.jsonc` remains reusable and ID-free. Wrangler config files do not inherit from `wrangler.jsonc`, so repeat `APP_NAME` in the personal config; it controls the invitation sender display name as well as the UI. This repository's personal config disables Turnstile and binds the existing production D1 database explicitly.
 
 Use the committed Bun scripts so every personal operation selects the local config consistently:
 
