@@ -71,7 +71,7 @@ export function createAuth(env: Env, request: Request) {
         },
       }),
       oauthProvider({
-        loginPage: "/sign-in",
+        loginPage: "/",
         consentPage: "/consent",
         scopes: ["openid", "email", "profile"],
         grantTypes: ["authorization_code"],

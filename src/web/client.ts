@@ -82,7 +82,9 @@ async function setupInvitationRequest(): Promise<void> {
   const showConfirmation = (email: string): void => {
     status.textContent = "";
     confirmationEmail.textContent = email;
-    form.hidden = true;
+    form.classList.add("invite-request-form--hidden");
+    form.setAttribute("aria-hidden", "true");
+    form.setAttribute("inert", "");
     confirmation.hidden = false;
   };
   const config = await getPublicConfig();
@@ -129,13 +131,22 @@ async function signIn(): Promise<void> {
 }
 
 async function register(): Promise<void> {
-  const token = new URLSearchParams(window.location.search).get("token");
+  const match = /^\/invite\/([^/]+)$/.exec(window.location.pathname);
+  const encodedToken = match?.[1];
+  let token: string | null = null;
+  if (encodedToken) {
+    try {
+      token = decodeURIComponent(encodedToken);
+    } catch {
+      // Treat malformed path encoding as an incomplete invitation link.
+    }
+  }
   if (!token) {
     setStatus("This invitation link is incomplete.", true);
     return;
   }
   const finish = (): void => {
-    window.location.replace("/sign-in.html?registered=1");
+    window.location.replace("/?registered=1");
   };
   const registrationComplete = async (): Promise<boolean> => {
     try {

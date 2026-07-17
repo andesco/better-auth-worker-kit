@@ -238,20 +238,36 @@ input:focus-visible {
   flex-direction: column;
 }
 
-.request-invite { gap: calc(var(--spacing) * 4); }
+.request-invite {
+  position: relative;
+  gap: calc(var(--spacing) * 4);
+}
 
 #invite-request-form { gap: calc(var(--spacing) * 3); }
+
+#invite-request-form.invite-request-form--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
 
 .form-row { gap: var(--spacing); }
 
 .invitation-confirmation {
+  position: absolute;
+  inset: 0 0 auto;
   display: block;
 }
 
 .confirmation-message {
-  color: var(--text);
-  font-size: 14px;
-  line-height: 20px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .confirmation-email {

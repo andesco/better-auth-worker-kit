@@ -11,6 +11,10 @@ function redirect(location: string): Response {
   });
 }
 
+function notFound(): Response {
+  return new Response("Not found", { status: 404 });
+}
+
 function securePage(response: Response, turnstileEnabled: boolean): Response {
   const headers = new Headers(response.headers);
   headers.set("cache-control", "no-store");
@@ -26,6 +30,22 @@ function securePage(response: Response, turnstileEnabled: boolean): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+async function pageAsset(request: Request, env: Env, pathname: string): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: { allow: "GET, HEAD", "cache-control": "no-store" },
+    });
+  }
+  const assetUrl = new URL(request.url);
+  assetUrl.pathname = pathname;
+  const asset = await env.ASSETS.fetch(new Request(assetUrl, {
+    method: request.method,
+    headers: request.headers,
+  }));
+  return securePage(asset, env.TURNSTILE_ENABLED === "true");
+}
+
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
@@ -33,8 +53,9 @@ export default {
 
     try {
       if (url.pathname === "/health") return Response.json({ ok: true });
-      if (url.pathname === "/") return redirect("/sign-in");
-      if (url.pathname === "/sign-in") return redirect(`/sign-in.html${url.search}`);
+      if (url.pathname.endsWith(".html")) return notFound();
+      if (url.pathname === "/") return await pageAsset(request, env, "/sign-in.html");
+      if (url.pathname === "/sign-in") return redirect(`/${url.search}`);
       if (url.pathname === "/api/invitations/request") {
         return await handleInvitationRequest(request, env, auth, ctx);
       }
@@ -61,8 +82,8 @@ export default {
       }
       if (url.pathname.startsWith("/invite/")) {
         const token = url.pathname.slice("/invite/".length);
-        if (!token || token.includes("/")) return new Response("Not found", { status: 404 });
-        return redirect(`/invite.html?token=${encodeURIComponent(token)}`);
+        if (!token || token.includes("/")) return notFound();
+        return await pageAsset(request, env, "/invite.html");
       }
       if (url.pathname.startsWith(ADMIN_BASE_PATH)) return await handleAdmin(request, env, auth);
       if (url.pathname === "/.well-known/openid-configuration") {
@@ -81,10 +102,7 @@ export default {
       if (url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/.well-known/")) {
         return await auth.handler(request);
       }
-      const asset = await env.ASSETS.fetch(request);
-      return url.pathname === "/sign-in.html" || url.pathname === "/invite.html"
-        ? securePage(asset, env.TURNSTILE_ENABLED === "true")
-        : asset;
+      return await env.ASSETS.fetch(request);
     } catch (error) {
       const details = error instanceof Response
         ? { kind: "Response", status: error.status, body: await error.clone().text() }
