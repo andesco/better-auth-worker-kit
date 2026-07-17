@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "better-auth-worker-kit",
+      "name": "cloudflare-access-passkeys-kit",
       "dependencies": {
         "@better-auth/oauth-provider": "latest",
         "@better-auth/passkey": "latest",

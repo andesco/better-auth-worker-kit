@@ -1,6 +1,6 @@
 # Security Model
 
-Better Auth Worker Kit has the following security properties:
+Cloudflare Access Passkeys Kit has the following security properties:
 
 - Passkeys are the only enabled interactive sign-in method.
 - Enrollment requires a cryptographically random, expiring, single-use invitation.
@@ -9,7 +9,7 @@ Better Auth Worker Kit has the following security properties:
 - Invitation email is transactional, includes HTML and plain-text bodies, and is sent through the native Cloudflare Email Service binding.
 - Resident credentials and user verification are required. The WebAuthn verification result is checked explicitly for the UV flag.
 - Sign-in is usernameless and opens the browser or operating system’s account chooser for discoverable passkeys.
-- Passkeys are labeled with the policy-authorized invitation email instead of a generic “Primary passkey” name.
+- Passkeys are email-bound: they are labeled with the policy-authorized invitation email instead of a generic “Primary passkey” name.
 - Dynamic OAuth client registration and user-managed OAuth client CRUD are disabled.
 - Exactly one confidential OIDC client can be provisioned. It requires PKCE, skips consent, and supports only the authorization-code grant.
 - OIDC ID tokens use RS256 because Cloudflare Access does not support Better Auth’s default Ed25519/OKP signing keys. The included migration removes incompatible legacy keys when upgrading an existing deployment so Better Auth can generate an RSA key.

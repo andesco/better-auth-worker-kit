@@ -1,5 +1,5 @@
 {
-  "name": "better-auth-worker-kit",
+  "name": "cloudflare-access-passkeys-kit",
   "version": "1.0.0",
   "private": true,
   "type": "module",

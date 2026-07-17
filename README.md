@@ -1,6 +1,6 @@
-# Better Auth Worker Kit
+# Cloudflare Access Passkeys Kit
 
-**Better Auth Worker Kit** adds passkey authentication to [Cloudflare&nbsp;Access][access] by running [Better&nbsp;Auth][better-auth] as a small OpenID Connect identity provider on [Cloudflare&nbsp;Workers][workers]. Authentication state is stored in [Cloudflare&nbsp;D1][d1], administration remains CLI-only, and authorized users receive email invitations through the built-in [Cloudflare Email Service][email-service] integration.
+**Cloudflare Access Passkeys Kit** is an invitation-gated, email-bound passkey identity provider for [Cloudflare&nbsp;Access][access]. It runs [Better&nbsp;Auth][better-auth] as a small OpenID Connect identity provider on [Cloudflare&nbsp;Workers][workers]. Authentication state is stored in [Cloudflare&nbsp;D1][d1], administration remains CLI-only, and authorized users receive email invitations through the built-in [Cloudflare Email Service][email-service] integration.
 
 Cloudflare Access is the access-control layer. It continues to handle application policies, permitted email addresses, sessions, identity-provider selection, and any OTP or MFA requirements. The Worker reads one reusable Cloudflare Access policy containing exact email selectors, sends an invitation only when the submitted address is listed, and never reveals the result in its browser response.
 
@@ -16,14 +16,14 @@ Cloudflare Access is the access-control layer. It continues to handle applicatio
 `Access: Apps and Policies Read`
 - domain or subdomain onboarded to Cloudflare Email Service
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/better-auth-worker-kit)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/andesco/cloudflare-access-passkeys-kit)
 
 ### Suggested Prompt
 
 ```text
 Use authenticated Wrangler CLI and the Cloudflare API or MCP to deploy this repository as a passkey identity provider for Cloudflare Access:
 
-https://github.com/andesco/better-auth-worker-kit
+https://github.com/andesco/cloudflare-access-passkeys-kit
 
 Read the README completely and follow its Deploy to Cloudflare instructions, including the prerequisites, security constraints, Cloudflare Access integration, and verification steps. Ask the user which email identity to invite before creating the first invitation.
 ```
@@ -33,7 +33,7 @@ Read the README completely and follow its Deploy to Cloudflare instructions, inc
 Workers & Pages → [**Create application**](https://dash.cloudflare.com/?to=/:account/workers-and-pages/create/deploy-to-workers): Continue with GitHub: Clone a public repository via Git URL:
 
 ```text
-https://github.com/andesco/better-auth-worker-kit
+https://github.com/andesco/cloudflare-access-passkeys-kit
 ```
 
 Cloudflare automatically provisions and binds D1 from the draft `DB` binding in `wrangler.jsonc`. The deploy script applies the included schema migration immediately after the Worker is created; do not create a database manually or add an account-specific database ID to the repository.
@@ -52,8 +52,8 @@ Set the non-secret `APP_NAME` variable to the user-facing application name shown
 ### Wrangler CLI
 
 ```bash
-git clone https://github.com/andesco/better-auth-worker-kit.git
-cd better-auth-worker-kit
+git clone https://github.com/andesco/cloudflare-access-passkeys-kit.git
+cd cloudflare-access-passkeys-kit
 bun install
 bunx wrangler whoami
 bun run deploy
@@ -125,13 +125,13 @@ Cloudflare Access policies continue to decide which emails and identities may re
 
 ### Passkey behavior
 
-Registration creates a discoverable passkey. Sign-in is usernameless: the passkey button opens the browser or operating system’s account chooser without first requesting an email address. The page’s email field belongs only to the separate invitation form.
+Registration creates an email-bound, discoverable passkey: the verified invitation email becomes its WebAuthn user name, display name, and Better Auth label. Sign-in is usernameless: the passkey button opens the browser or operating system’s account chooser without first requesting an email address. The page’s email field belongs only to the separate invitation form.
 
-The verified invitation email becomes the WebAuthn user name, display name, and Better Auth passkey label. It is not embedded in the public key or exposed through JWKS, but the user’s passkey manager may display it for account identification.
+The email is not embedded in the public key or exposed through JWKS, but the user’s passkey manager may display it for account identification.
 
 ## Responsibility Boundary
 
-**Better Auth Worker Kit**
+**Cloudflare Access Passkeys Kit**
 
 - Passkey registration and verification
 - Policy-backed, invitation-gated identity creation

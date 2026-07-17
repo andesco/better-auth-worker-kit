@@ -1,4 +1,4 @@
-export const DEFAULT_APP_NAME = "Better Auth Worker Kit";
+export const DEFAULT_APP_NAME = "Cloudflare Access Passkeys Kit";
 export const AUTH_BASE_PATH = "/api/auth";
 export const ADMIN_BASE_PATH = "/__admin/v1";
 
