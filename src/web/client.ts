@@ -66,6 +66,9 @@ declare global {
         action: string;
         size?: "normal" | "compact" | "flexible";
         theme?: "light" | "dark" | "auto";
+        callback?: (token: string) => void;
+        "error-callback"?: () => void;
+        "expired-callback"?: () => void;
       }): string;
       getResponse(widgetId?: string): string;
       reset(widgetId?: string): void;
@@ -89,33 +92,64 @@ async function setupInvitationRequest(): Promise<void> {
   };
   const config = await getPublicConfig();
   let widgetId: string | undefined;
-  if (config.turnstileEnabled && config.turnstileSiteKey) {
-    await loadTurnstile();
-    widgetId = window.turnstile?.render("#turnstile-widget", {
-      sitekey: config.turnstileSiteKey,
-      action: "turnstile-spin-v1",
-      size: "flexible",
-      theme: "light",
-    });
-  } else {
-    document.getElementById("turnstile-widget")?.remove();
-  }
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const email = element<HTMLInputElement>("invite-email").value.trim();
-    const turnstileToken = widgetId ? window.turnstile?.getResponse(widgetId) ?? "" : "";
+  let pendingEmail = "";
+  let submitting = false;
+  const submitInvitation = async (turnstileToken: string): Promise<void> => {
+    if (submitting) return;
+    submitting = true;
     status.textContent = "Submitting…";
     try {
       await fetch("/api/invitations/request", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, turnstileToken }),
+        body: JSON.stringify({ email: pendingEmail, turnstileToken }),
       });
-      showConfirmation(email);
+      showConfirmation(pendingEmail);
     } catch {
-      showConfirmation(email);
+      showConfirmation(pendingEmail);
     } finally {
+      submitting = false;
       if (widgetId) window.turnstile?.reset(widgetId);
+    }
+  };
+  if (!config.turnstileEnabled || !config.turnstileSiteKey) {
+    document.getElementById("turnstile-widget")?.remove();
+  }
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    pendingEmail = element<HTMLInputElement>("invite-email").value.trim();
+    if (!config.turnstileEnabled || !config.turnstileSiteKey) {
+      await submitInvitation("");
+      return;
+    }
+    const existingToken = widgetId ? window.turnstile?.getResponse(widgetId) ?? "" : "";
+    if (existingToken) {
+      await submitInvitation(existingToken);
+      return;
+    }
+    if (widgetId) {
+      status.textContent = "Complete the verification to request an invitation.";
+      return;
+    }
+    status.textContent = "Loading verification…";
+    try {
+      await loadTurnstile();
+      widgetId = window.turnstile?.render("#turnstile-widget", {
+        sitekey: config.turnstileSiteKey,
+        action: "turnstile-spin-v1",
+        size: "flexible",
+        theme: "light",
+        callback: (token) => void submitInvitation(token),
+        "error-callback": () => {
+          status.textContent = "Verification failed. Try again or sign in with your passkey.";
+        },
+        "expired-callback": () => {
+          status.textContent = "Verification expired. Complete it again to request an invitation.";
+        },
+      });
+      status.textContent = "Complete the verification to request an invitation.";
+    } catch {
+      status.textContent = "Verification could not load. Try again or sign in with your passkey.";
     }
   });
 }
