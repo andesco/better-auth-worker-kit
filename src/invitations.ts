@@ -80,7 +80,7 @@ export async function issueInvitation(
   db: D1Database,
   email: string,
   days: number,
-): Promise<{ token: string; expiresAt: number } | null> {
+): Promise<{ id: string; token: string; expiresAt: number; createdAt: number } | null> {
   const context = await auth.$context;
   const existing = await context.internalAdapter.findUserByEmail(email, { includeAccounts: false });
   let user = existing?.user;
@@ -100,7 +100,7 @@ export async function issueInvitation(
   const now = Date.now();
   const expiresAt = now + days * 86_400_000;
   try {
-    await db.prepare(
+    const invitation = await db.prepare(
       `INSERT INTO invitation
         (id, token_hash, email, user_id, expires_at, used_at, revoked_at, created_at)
        VALUES (?1, ?2, ?3, ?4, ?5, NULL, NULL, ?6)
@@ -110,11 +110,23 @@ export async function issueInvitation(
          expires_at = excluded.expires_at,
          used_at = NULL,
          revoked_at = NULL,
-         created_at = excluded.created_at`,
-    ).bind(crypto.randomUUID(), await sha256Hex(token), email, user.id, expiresAt, now).run();
+         created_at = excluded.created_at
+       RETURNING id`,
+    ).bind(crypto.randomUUID(), await sha256Hex(token), email, user.id, expiresAt, now)
+      .first<{ id: string }>();
+    if (!invitation) throw new Error("Invitation creation returned no record");
+    return { id: invitation.id, token, expiresAt, createdAt: now };
   } catch (error) {
     if (!existing) await context.internalAdapter.deleteUser(user.id);
     throw error;
   }
-  return { token, expiresAt };
+}
+
+export async function cancelUnsentInvitation(
+  db: D1Database,
+  invitation: { id: string; createdAt: number },
+): Promise<void> {
+  await db.prepare(
+    "DELETE FROM invitation WHERE id = ?1 AND created_at = ?2 AND used_at IS NULL",
+  ).bind(invitation.id, invitation.createdAt).run();
 }

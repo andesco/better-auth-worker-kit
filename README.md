@@ -181,7 +181,15 @@ bun run admin client provision <cloudflare-team-name>
 bun run admin client show
 ```
 
-Invitation URLs are credentials until consumed. CLI-created URLs should be sent over a secure channel and kept out of tickets, logs, and chat archives. Policy-authorized users can instead request an email from the sign-in page; repeated delivery is suppressed for ten minutes.
+Invitation URLs are credentials until consumed. CLI-created URLs should be sent over a secure channel and kept out of tickets, logs, and chat archives. Policy-authorized users can instead request an email from the sign-in page; repeated delivery is suppressed for ten minutes after Cloudflare accepts the message. If Cloudflare rejects a send synchronously, the unsent invitation is removed so the user can retry immediately.
+
+To diagnose delivery, stream Worker logs while requesting an invitation:
+
+```bash
+bunx wrangler tail
+```
+
+An accepted send logs the invitation ID and Cloudflare Email Sending message ID without logging the recipient or invitation URL. Check the Email Sending suppression list and recipient spam or junk folder when Cloudflare accepts a message but it does not arrive.
 
 ## Local Development
 

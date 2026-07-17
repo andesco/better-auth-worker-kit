@@ -1,7 +1,7 @@
 import type { Auth } from "./auth";
 import { accessPolicyAllowsEmail } from "./access-policy";
 import { appName, requestOrigin } from "./constants";
-import { issueInvitation } from "./invitations";
+import { cancelUnsentInvitation, issueInvitation } from "./invitations";
 
 const GENERIC_MESSAGE = "If authorized, we'll send an invitation email.";
 
@@ -44,13 +44,31 @@ async function processRequest(request: Request, env: Env, auth: Auth, email: str
     if (!invitation) return;
     const url = `${requestOrigin(request)}/invite/${invitation.token}`;
     const name = appName(env);
-    await env.EMAIL.send({
-      to: email,
-      from: { name, email: env.INVITATION_FROM },
-      subject: `Your ${name} invitation`,
-      text: `You have been invited to register a passkey.\n\nOpen this single-use link within 7 days:\n${url}\n\nIf you did not request this invitation, you can ignore this email.`,
-      html: `<p>You have been invited to register a passkey.</p><p><a href="${url}">Create your passkey</a></p><p>This single-use link expires in 7 days. If you did not request it, you can ignore this email.</p>`,
-    });
+    try {
+      const result = await env.EMAIL.send({
+        to: email,
+        from: { name, email: env.INVITATION_FROM },
+        subject: `Your ${name} invitation`,
+        text: `You have been invited to register a passkey.\n\nOpen this single-use link within 7 days:\n${url}\n\nIf you did not request this invitation, you can ignore this email.`,
+        html: `<p>You have been invited to register a passkey.</p><p><a href="${url}">Create your passkey</a></p><p>This single-use link expires in 7 days. If you did not request it, you can ignore this email.</p>`,
+      });
+      console.log(JSON.stringify({
+        message: "invitation email accepted",
+        invitationId: invitation.id,
+        messageId: result.messageId,
+      }));
+    } catch (error) {
+      try {
+        await cancelUnsentInvitation(env.DB, invitation);
+      } catch (rollbackError) {
+        console.error(JSON.stringify({
+          message: "failed to cancel unsent invitation",
+          invitationId: invitation.id,
+          error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+        }));
+      }
+      throw error;
+    }
   } catch (error) {
     console.error(JSON.stringify({
       message: "invitation request processing failed",
