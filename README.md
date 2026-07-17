@@ -102,7 +102,7 @@ Access policies continue to decide which emails and identities may reach each pr
 
 ### Passkey discovery and labels
 
-Registration requires a resident, discoverable credential. Sign-in is explicitly usernameless: selecting the passkey button opens the browser or operating system's passkey account chooser without first requesting an email address. The only email field on the page belongs to the separate invitation-request form and does not participate in passkey authentication.
+Registration requires a resident, discoverable credential. Sign-in is explicitly usernameless: selecting the passkey button opens the browser or operating system's account chooser without first requesting an email address. The only email field on the page belongs to the separate invitation-request form and does not participate in passkey authentication. Conditional passkey AutoFill is intentionally not used because it requires an eligible text input.
 
 The verified invitation email is used as the WebAuthn user name and display name and as the passkey label stored by Better Auth. This does not put the email into the public key or expose it through JWKS. It does mean that the user's passkey manager may display the email on devices where that passkey is available, which is intentional for account identification.
 
