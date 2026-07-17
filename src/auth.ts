@@ -3,15 +3,16 @@ import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { jwt } from "better-auth/plugins";
-import { APP_NAME, requestOrigin } from "./constants";
+import { appName, requestOrigin } from "./constants";
 import { consumeInvitation, resolveInvitation } from "./invitations";
 
 export function createAuth(env: Env, request: Request) {
   const origin = requestOrigin(request);
   const rpID = new URL(origin).hostname;
+  const name = appName(env);
 
   return betterAuth({
-    appName: APP_NAME,
+    appName: name,
     baseURL: origin,
     secret: env.BETTER_AUTH_SECRET,
     database: env.DB,
@@ -30,7 +31,7 @@ export function createAuth(env: Env, request: Request) {
       }),
       passkey({
         rpID,
-        rpName: APP_NAME,
+        rpName: name,
         origin,
         authenticatorSelection: {
           residentKey: "required",

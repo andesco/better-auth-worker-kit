@@ -25,6 +25,8 @@
 *::before,
 *::after { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html,
 body {
   min-height: 100vh;
@@ -57,37 +59,30 @@ input { font: inherit; }
   margin: 0 auto;
 }
 
-.auth-shell::after {
-  height: 41px;
-  flex-shrink: 0;
-  content: "";
+.brand {
+  width: 280px;
+  max-width: 100%;
+  height: 50px;
+  display: block;
+  margin: 0 auto;
+  color: #000;
 }
 
-.brand {
+.brand-logo {
+  width: 280px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.app-identity {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 50px;
-  color: #000;
-  font-size: 24px;
-  font-weight: 650;
-  letter-spacing: -0.035em;
-  line-height: 32px;
-}
-
-.brand-mark {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  border-radius: 12px;
-  background: #000;
-  color: #fff;
-  font-size: 22px;
-  font-weight: 750;
-  letter-spacing: -0.08em;
+  gap: calc(var(--spacing) * 3);
+  color: var(--subtle);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .auth-card {
@@ -104,16 +99,6 @@ input { font: inherit; }
   flex-direction: column;
   gap: calc(var(--spacing) * 4);
   padding: calc(var(--spacing) * 8);
-}
-
-.app-identity {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--spacing) * 3);
-  color: var(--subtle);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
 }
 
 h1,
@@ -253,11 +238,25 @@ input:focus-visible {
   flex-direction: column;
 }
 
-.request-invite { gap: calc(var(--spacing) * 2); }
+.request-invite { gap: calc(var(--spacing) * 4); }
 
 #invite-request-form { gap: calc(var(--spacing) * 3); }
 
 .form-row { gap: var(--spacing); }
+
+.invitation-confirmation {
+  display: block;
+}
+
+.confirmation-message {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.confirmation-email {
+  overflow-wrap: anywhere;
+}
 
 label {
   margin-bottom: 2px;
@@ -302,25 +301,35 @@ output[data-error="true"] { color: var(--danger); }
   line-height: 18px;
 }
 
+.project-credit {
+  min-height: 21px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.project-credit a {
+  color: var(--subtle);
+  text-decoration: none;
+}
+
+.project-credit a:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (max-width: 480px) {
   body {
     align-items: flex-start;
     padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4) calc(var(--spacing) * 4);
   }
 
-  .auth-shell::after { display: none; }
-
   .brand {
-    min-height: 42px;
-    font-size: 20px;
-    line-height: 28px;
-  }
-
-  .brand-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    font-size: 19px;
+    width: 220px;
+    height: auto;
   }
 
   .auth-card__body { padding: calc(var(--spacing) * 5); }

@@ -4,21 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>Sign in — Better Auth Worker Kit</title>
+    <title>Sign in — andrewe.dev</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body data-page="sign-in">
     <main class="auth-shell">
-      <header class="brand" aria-label="Better Auth Worker Kit">
-        <span class="brand-mark" aria-hidden="true">B</span>
-        <span>Better Auth Worker Kit</span>
+      <header class="brand">
+        <img class="brand-logo" src="/assets/cloudflare-access.svg" alt="Cloudflare Access">
       </header>
       <section class="auth-card" aria-labelledby="sign-in-title">
         <div class="auth-card__body">
-          <div class="app-identity">
-            <span>better-auth-worker-kit</span>
-          </div>
-          <h1 id="sign-in-title">Log in to Better Auth Worker Kit</h1>
+          <div class="app-identity"><span data-app-name>andrewe.dev</span></div>
+          <h1 id="sign-in-title">Log in to <span data-app-name>andrewe.dev</span></h1>
           <div class="auth-options">
             <div class="auth-group">
               <p class="field-label">Sign in with:</p>
@@ -44,11 +41,17 @@
                   <button class="primary-button" type="submit">Request invitation</button>
                 </div>
               </form>
-              <output id="invite-request-status" aria-live="polite"></output>
+              <output id="invite-request-status" class="confirmation-message" aria-live="polite"></output>
+              <div id="invitation-confirmation" class="information-panel invitation-confirmation" hidden>
+                If <span id="invitation-confirmation-email" class="confirmation-email"></span> is authorized, an invitation will be sent.
+              </div>
             </section>
           </div>
         </div>
       </section>
+      <footer class="project-credit">
+        <a href="https://github.com/andesco/better-auth-worker-kit">better-auth-worker-kit</a>
+      </footer>
     </main>
     <script type="module" src="/assets/client.js"></script>
   </body>

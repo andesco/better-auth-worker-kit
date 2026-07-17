@@ -36,6 +36,8 @@ The enrollment form also requires:
 
 These deployment-specific values are requested as bindings: `CLOUDFLARE_ACCOUNT_ID`, `ACCESS_POLICY_ID`, `CLOUDFLARE_API_TOKEN`, and `INVITATION_FROM`. `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` are required only when `TURNSTILE_ENABLED` is `"true"`.
 
+Set the non-secret `APP_NAME` variable to the user-facing application name shown on the sign-in and enrollment pages, passkey prompt, and invitation email. The committed deployment uses `andrewe.dev`.
+
 ### Wrangler CLI
 
 ```bash

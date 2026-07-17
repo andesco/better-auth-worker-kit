@@ -1,6 +1,6 @@
 import type { Auth } from "./auth";
 import { accessPolicyAllowsEmail } from "./access-policy";
-import { APP_NAME, requestOrigin } from "./constants";
+import { appName, requestOrigin } from "./constants";
 import { issueInvitation } from "./invitations";
 
 const GENERIC_MESSAGE = "If authorized, we'll send an invitation email.";
@@ -43,10 +43,11 @@ async function processRequest(request: Request, env: Env, auth: Auth, email: str
     const invitation = await issueInvitation(auth, env.DB, email, 7);
     if (!invitation) return;
     const url = `${requestOrigin(request)}/invite/${invitation.token}`;
+    const name = appName(env);
     await env.EMAIL.send({
       to: email,
-      from: { name: APP_NAME, email: env.INVITATION_FROM },
-      subject: `Your ${APP_NAME} invitation`,
+      from: { name, email: env.INVITATION_FROM },
+      subject: `Your ${name} invitation`,
       text: `You have been invited to register a passkey.\n\nOpen this single-use link within 7 days:\n${url}\n\nIf you did not request this invitation, you can ignore this email.`,
       html: `<p>You have been invited to register a passkey.</p><p><a href="${url}">Create your passkey</a></p><p>This single-use link expires in 7 days. If you did not request it, you can ignore this email.</p>`,
     });

@@ -4,6 +4,22 @@ import { createAuthClient } from "better-auth/client";
 
 const auth = createAuthClient({ plugins: [oauthProviderClient(), passkeyClient()] });
 
+interface PublicConfig {
+  appName: string;
+  turnstileEnabled: boolean;
+  turnstileSiteKey?: string;
+}
+
+let publicConfigPromise: Promise<PublicConfig> | undefined;
+
+function getPublicConfig(): Promise<PublicConfig> {
+  publicConfigPromise ??= fetch("/api/config").then(async (response) => {
+    if (!response.ok) throw new Error("Unable to load public configuration");
+    return await response.json() as PublicConfig;
+  });
+  return publicConfigPromise;
+}
+
 function element<T extends HTMLElement>(id: string): T {
   const value = document.getElementById(id);
   if (!value) throw new Error(`Missing element: ${id}`);
@@ -29,6 +45,19 @@ function setStatus(message: string, error = false): void {
   status.dataset.error = String(error);
 }
 
+async function applyBranding(): Promise<void> {
+  try {
+    const { appName } = await getPublicConfig();
+    document.querySelectorAll<HTMLElement>("[data-app-name]").forEach((node) => {
+      node.textContent = appName;
+    });
+    const pageTitle = document.body.dataset.page === "invite" ? "Accept invitation" : "Sign in";
+    document.title = `${pageTitle} — ${appName}`;
+  } catch {
+    // Keep the static fallback branding when public configuration is unavailable.
+  }
+}
+
 declare global {
   interface Window {
     turnstile?: {
@@ -47,11 +76,16 @@ declare global {
 async function setupInvitationRequest(): Promise<void> {
   const form = document.getElementById("invite-request-form") as HTMLFormElement | null;
   if (!form) return;
-  const configResponse = await fetch("/api/config");
-  const config = await configResponse.json() as {
-    turnstileEnabled: boolean;
-    turnstileSiteKey?: string;
+  const confirmation = element<HTMLDivElement>("invitation-confirmation");
+  const confirmationEmail = element<HTMLElement>("invitation-confirmation-email");
+  const status = element<HTMLOutputElement>("invite-request-status");
+  const showConfirmation = (email: string): void => {
+    status.textContent = "";
+    confirmationEmail.textContent = email;
+    form.hidden = true;
+    confirmation.hidden = false;
   };
+  const config = await getPublicConfig();
   let widgetId: string | undefined;
   if (config.turnstileEnabled && config.turnstileSiteKey) {
     await loadTurnstile();
@@ -66,21 +100,18 @@ async function setupInvitationRequest(): Promise<void> {
   }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const status = element<HTMLOutputElement>("invite-request-status");
-    const email = element<HTMLInputElement>("invite-email").value;
+    const email = element<HTMLInputElement>("invite-email").value.trim();
     const turnstileToken = widgetId ? window.turnstile?.getResponse(widgetId) ?? "" : "";
     status.textContent = "Submitting…";
     try {
-      const result = await fetch("/api/invitations/request", {
+      await fetch("/api/invitations/request", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, turnstileToken }),
       });
-      const body = await result.json() as { message?: string };
-      status.textContent = body.message ?? "If authorized, we'll send an invitation email.";
-      form.reset();
+      showConfirmation(email);
     } catch {
-      status.textContent = "If authorized, we'll send an invitation email.";
+      showConfirmation(email);
     } finally {
       if (widgetId) window.turnstile?.reset(widgetId);
     }
@@ -138,6 +169,7 @@ async function register(): Promise<void> {
 
 const action = document.body.dataset.page;
 const button = element<HTMLButtonElement>("primary-action");
+void applyBranding();
 button.onclick = () => void (action === "invite" ? register() : signIn());
 if (action === "sign-in" && new URLSearchParams(window.location.search).get("registered") === "1") {
   setStatus("Passkey created. Sign in to continue.");

@@ -1,6 +1,6 @@
 import { createAuth } from "./auth";
 import { handleAdmin } from "./admin-api";
-import { ADMIN_BASE_PATH } from "./constants";
+import { ADMIN_BASE_PATH, appName } from "./constants";
 import { handleInvitationRequest } from "./invitation-request";
 import { invitationRegistrationComplete } from "./invitations";
 
@@ -41,6 +41,7 @@ export default {
       if (url.pathname === "/api/config") {
         const turnstileEnabled = env.TURNSTILE_ENABLED === "true";
         return Response.json({
+          appName: appName(env),
           turnstileEnabled,
           ...(turnstileEnabled ? { turnstileSiteKey: env.TURNSTILE_SITE_KEY } : {}),
         }, {
